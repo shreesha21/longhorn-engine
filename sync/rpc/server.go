@@ -30,7 +30,8 @@ type SyncAgentServer struct {
 	endPort         int
 	processesByPort map[int]string
 
-	BackupList *BackupList
+	BackupList  *BackupList
+	RestoreList *replica.Restore
 }
 
 type BackupList struct {
@@ -282,25 +283,37 @@ func (*SyncAgentServer) BackupRemove(ctx context.Context, req *BackupRemoveReque
 	return &Empty{}, nil
 }
 
-func (*SyncAgentServer) BackupRestore(ctx context.Context, req *BackupRestoreRequest) (*Empty, error) {
-	cmd := reexec.Command("sbackup", "restore", req.Backup, "--to", req.SnapshotFileName)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Pdeathsig: syscall.SIGKILL,
+func (s *SyncAgentServer) BackupRestore(ctx context.Context, req *BackupRestoreRequest) (*Empty, error) {
+	id, rObj, err := backup.DoBackupRestore(req.Backup, req.SnapshotFileName)
+	if err != nil {
+		return nil, fmt.Errorf("error initiating restore [%v]", err)
 	}
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Start(); err != nil {
-		return nil, err
-	}
+	logrus.Infof("Successfully initiated restore[%v] for snapshot [%v]", id, rObj.SnapshotName)
 
-	logrus.Infof("Running %s %v", cmd.Path, cmd.Args)
-	if err := cmd.Wait(); err != nil {
-		logrus.Infof("Error running %s %v: %v", "sbackup", cmd.Args, err)
-		return nil, err
-	}
-
-	logrus.Infof("Done running %s %v", "sbackup", cmd.Args)
+	s.Lock()
+	s.RestoreList = rObj
+	s.Unlock()
 	return &Empty{}, nil
+}
+
+func (s *SyncAgentServer) BackupRestoreStatus(ctx context.Context, req *Empty) (*BackupRestoreStatusReply, error) {
+	s.Lock()
+	restoreStatus := s.RestoreList
+	s.Unlock()
+
+	if restoreStatus == nil {
+		return nil, fmt.Errorf("no backup restore operation is going on")
+	}
+
+	reply := &BackupRestoreStatusReply{
+		Progress:     int32(restoreStatus.RestoreProgress),
+		SnapshotName: restoreStatus.SnapshotName,
+	}
+	if s.RestoreList.RestoreError != nil {
+		reply.RestoreError = restoreStatus.RestoreError.Error()
+	}
+
+	return reply, nil
 }
 
 func (*SyncAgentServer) BackupRestoreIncrementally(ctx context.Context, req *BackupRestoreIncrementallyRequest) (*Empty, error) {

@@ -10,7 +10,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 
-	"github.com/longhorn/backupstore"
 	"github.com/longhorn/longhorn-engine/util"
 )
 
@@ -82,11 +81,13 @@ func restoreToFile(c *cli.Context) error {
 
 	defer CleanupTempFiles(outputFile, BackupFilePath, BackupFileConverted, BackingFileCopy)
 
+	/*TODO : NEED TO HANDLE ASYNCHRONUS RESTORE HERE
 	logrus.Infof("Start to restore %s to %s", backupURL, BackupFilePath)
 	if err := backupstore.RestoreDeltaBlockBackup(backupURL, BackupFilePath); err != nil {
 		return err
 	}
 	logrus.Infof("Done restoring %s to %s", backupURL, BackupFilePath)
+	*/
 
 	backingFileOrDir := c.String("backing-file")
 	if backingFileOrDir == "" {

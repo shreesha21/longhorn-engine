@@ -491,14 +491,35 @@ func (c *ReplicaClient) RestoreBackup(backup, snapshotFile string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), GRPCServiceLongTimeout)
 	defer cancel()
 
-	if _, err := syncAgentServiceClient.BackupRestore(ctx, &syncagentrpc.BackupRestoreRequest{
+	_, err = syncAgentServiceClient.BackupRestore(ctx, &syncagentrpc.BackupRestoreRequest{
 		Backup:           backup,
 		SnapshotFileName: snapshotFile,
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("failed to restore backup %v to snapshot %v: %v", backup, snapshotFile, err)
 	}
 
 	return nil
+}
+
+func (c *ReplicaClient) GetRestoreStatus() (*syncagentrpc.BackupRestoreStatusReply, error) {
+	conn, err := grpc.Dial(c.syncAgentServiceURL, grpc.WithInsecure())
+	if err != nil {
+		return nil, fmt.Errorf("cannot connect to SyncAgentService %v: %v", c.syncAgentServiceURL, err)
+	}
+	defer conn.Close()
+	syncAgentServiceClient := syncagentrpc.NewSyncAgentServiceClient(conn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), GRPCServiceCommonTimeout)
+	defer cancel()
+
+	reply, err := syncAgentServiceClient.BackupRestoreStatus(ctx, &syncagentrpc.Empty{})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return reply, nil
 }
 
 func (c *ReplicaClient) RestoreBackupIncrementally(backup, deltaFile, lastRestored string) error {

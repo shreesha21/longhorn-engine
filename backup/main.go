@@ -186,6 +186,8 @@ func cmdBackupRestore(c *cli.Context) {
 }
 
 func doBackupRestore(c *cli.Context) error {
+	return nil
+} /*
 	if c.NArg() == 0 {
 		return RequiredMissingError("backup URL")
 	}
@@ -208,6 +210,37 @@ func doBackupRestore(c *cli.Context) error {
 		return err
 	}
 	return nil
+} */
+
+func DoBackupRestore(backupURL string, toFile string) (string, *replica.Restore, error) {
+	if backupURL == "" {
+		return "", nil, RequiredMissingError("backup URL")
+	}
+	backupURL = util.UnescapeURL(backupURL)
+
+	if toFile == "" {
+		return "", nil, RequiredMissingError("snapshot")
+	}
+
+	restoreObj := replica.NewRestore(toFile)
+
+	log.Debugf("Starting restore from %v into snapshot %v", backupURL, toFile)
+
+	config := &backupstore.DeltaRestoreConfig{
+		BackupURL:    backupURL,
+		DeltaOps:     restoreObj,
+		SnapshotName: toFile,
+	}
+
+	id, err := backupstore.RestoreDeltaBlockBackup(config)
+	if err != nil {
+		return "", nil, err
+	}
+
+	if err := createNewSnapshotMetafile(toFile + ".meta"); err != nil {
+		return "", nil, err
+	}
+	return id, restoreObj, nil
 }
 
 func doBackupRestoreIncrementally(c *cli.Context) error {

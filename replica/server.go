@@ -3,15 +3,9 @@ package replica
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 	"sync"
 
-	"github.com/longhorn/backupstore"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-
-	"github.com/longhorn/longhorn-engine/util"
 )
 
 const (
@@ -310,6 +304,7 @@ func (s *Server) PingResponse() error {
 	return nil
 }
 
+/*
 func (s *Server) Restore(url, name string) (err error) {
 	defer func() {
 		err = errors.Wrapf(err, "fail to restore url %v to snapshot %v", url, name)
@@ -376,3 +371,4 @@ func (s *Server) Restore(url, name string) (err error) {
 	}
 	return r.Close()
 }
+*/
